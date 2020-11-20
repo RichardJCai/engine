@@ -38,8 +38,7 @@
 
     _resizeSynchronizer = [[FlutterResizeSynchronizer alloc] initWithDelegate:self];
     _surfaceManager = [[FlutterSurfaceManager alloc] initWithLayer:self.layer
-                                                     openGLContext:self.openGLContext
-                                                   numFramebuffers:2];
+                                                     openGLContext:self.openGLContext];
 
     _reshapeListener = reshapeListener;
   }
@@ -55,7 +54,6 @@
   [CATransaction begin];
   [CATransaction setDisableActions:YES];
 
-  [_surfaceManager setLayerContent];
   [_surfaceManager swapBuffers];
 
   [CATransaction commit];
