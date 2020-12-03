@@ -400,14 +400,20 @@ static void CommonInit(FlutterViewController* controller) {
     NSDictionary<NSString*, id>* args = [call arguments];
     long viewId = [args[@"id"] longValue];
 
+    if (self->_views.count(viewId) != 0) {
+      result([FlutterError errorWithCode:@"recreating_view"
+                                message:@"trying to create an already created view"
+                                details:[NSString stringWithFormat:@"view id: '%ld'", viewId]]);
+    }
+
     MockFlutterPlatformFactory* factory = [MockFlutterPlatformFactory new];
 
-    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:CGRectMake(500, 0, 300, 300)
+    // CGRect frame = CGRectMake(0, 0, params.sizePoints(), params.sizePoints().height());
+    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:CGRectZero
                                                         viewIdentifier:viewId
                                                             arguments:nil];                                     
 
-    // Hard coded right now to store one platform view in the map.
-    self->_view_map[1] = [embedded_view view];
+    self->_views[viewId] = [embedded_view view];
     result(nil);
   }];
 }

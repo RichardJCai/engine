@@ -14,7 +14,7 @@
 @property(nonatomic, readonly, nullable) FlutterView* flutterView;
 
 // A map of view ids to views.
-@property() std::map<int, NSView*> view_map;
+@property() std::map<int, NSView*> views;
 /**
  * This just returns the NSPasteboard so that it can be mocked in the tests.
  */

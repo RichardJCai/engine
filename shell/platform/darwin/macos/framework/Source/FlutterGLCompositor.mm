@@ -98,8 +98,13 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
         break;
       }
       case kFlutterLayerContentTypePlatformView:
-        // Add functionality in follow up PR.
-        FML_LOG(WARNING) << "Presenting PlatformViews not yet supported";
+        NSView* platform_view = view_controller_.views[layer->platform_view->identifier];
+        platform_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        if (platform_view.superview == nil) {
+          [view_controller_.flutterView addSubview:platform_view];
+        } else {
+          platform_view.layer.zPosition = i;
+        }
         break;
     };
   }
