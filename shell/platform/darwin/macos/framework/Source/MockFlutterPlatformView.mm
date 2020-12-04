@@ -9,11 +9,13 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
-  [super setString:@"hello1"];
+  // [super setString:@"hello"];
   [super setTextColor:[NSColor blueColor]];
+  super.drawsBackground = true;
+  super.backgroundColor = [NSColor redColor];
+  // [self.layer setBackgroundColor:[[NSColor redColor] CGColor]];
   return self;
 }
-
 @end
 
 @implementation MockFlutterPlatformView

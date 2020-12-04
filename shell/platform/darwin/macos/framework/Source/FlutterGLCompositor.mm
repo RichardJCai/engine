@@ -5,6 +5,7 @@
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterGLCompositor.h"
 
 #import <OpenGL/gl.h>
+#import <QuartzCore/QuartzCore.h>
 
 #import "flutter/fml/logging.h"
 #import "flutter/fml/platform/darwin/cf_utils.h"
@@ -26,43 +27,50 @@ FlutterGLCompositor::FlutterGLCompositor(FlutterViewController* view_controller)
 
 bool FlutterGLCompositor::CreateBackingStore(const FlutterBackingStoreConfig* config,
                                              FlutterBackingStore* backing_store_out) {
-  CGSize size = CGSizeMake(config->size.width, config->size.height);
+  std::unique_lock<std::mutex> lock(mutex_);
+  pending_ = true;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    CGSize size = CGSizeMake(config->size.width, config->size.height);
 
-  if (!frame_started_) {
-    StartFrame();
-    // If the backing store is for the first layer, return the fbo for the
-    // FlutterView.
-    auto fbo = [view_controller_.flutterView frameBufferIDForSize:size];
-    backing_store_out->open_gl.framebuffer.name = fbo;
-  } else {
-    FlutterFrameBufferProvider* fb_provider =
-        [[FlutterFrameBufferProvider alloc] initWithOpenGLContext:open_gl_context_];
-    FlutterIOSurfaceHolder* io_surface_holder = [FlutterIOSurfaceHolder alloc];
+    if (!frame_started_) {
+      StartFrame();
+      // If the backing store is for the first layer, return the fbo for the
+      // FlutterView.
+      auto fbo = [view_controller_.flutterView frameBufferIDForSize:size];
+      backing_store_out->open_gl.framebuffer.name = fbo;
+    } else {
+      FlutterFrameBufferProvider* fb_provider =
+          [[FlutterFrameBufferProvider alloc] initWithOpenGLContext:open_gl_context_];
+      FlutterIOSurfaceHolder* io_surface_holder = [FlutterIOSurfaceHolder alloc];
 
-    GLuint fbo = [fb_provider glFrameBufferId];
-    GLuint texture = [fb_provider glTextureId];
+      GLuint fbo = [fb_provider glFrameBufferId];
+      GLuint texture = [fb_provider glTextureId];
 
-    size_t layer_id = CreateCALayer();
+      size_t layer_id = CreateCALayer();
 
-    [io_surface_holder bindSurfaceToTexture:texture fbo:fbo size:size];
-    FlutterBackingStoreData* data =
-        [[FlutterBackingStoreData alloc] initWithLayerId:layer_id
-                                              fbProvider:fb_provider
-                                         ioSurfaceHolder:io_surface_holder];
+      [io_surface_holder bindSurfaceToTexture:texture fbo:fbo size:size];
+      FlutterBackingStoreData* data =
+          [[FlutterBackingStoreData alloc] initWithLayerId:layer_id
+                                                fbProvider:fb_provider
+                                          ioSurfaceHolder:io_surface_holder];
 
-    backing_store_out->open_gl.framebuffer.name = fbo;
-    backing_store_out->open_gl.framebuffer.user_data = (__bridge_retained void*)data;
-  }
-
-  backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
-  backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
-  backing_store_out->open_gl.framebuffer.target = GL_RGBA8;
-  backing_store_out->open_gl.framebuffer.destruction_callback = [](void* user_data) {
-    if (user_data != nullptr) {
-      CFRelease(user_data);
+      backing_store_out->open_gl.framebuffer.name = fbo;
+      backing_store_out->open_gl.framebuffer.user_data = (__bridge_retained void*)data;
     }
-  };
 
+    backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
+    backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
+    backing_store_out->open_gl.framebuffer.target = GL_RGBA8;
+    backing_store_out->open_gl.framebuffer.destruction_callback = [](void* user_data) {
+      if (user_data != nullptr) {
+        CFRelease(user_data);
+      }
+    };
+
+    pending_ = false;
+    cv_.notify_all();
+  });
+  cv_.wait(lock, [&](){return !pending_;});
   return true;
 }
 
@@ -71,47 +79,70 @@ bool FlutterGLCompositor::CollectBackingStore(const FlutterBackingStore* backing
 }
 
 bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_count) {
-  for (size_t i = 0; i < layers_count; ++i) {
-    const auto* layer = layers[i];
-    FlutterBackingStore* backing_store = const_cast<FlutterBackingStore*>(layer->backing_store);
-    switch (layer->type) {
-      case kFlutterLayerContentTypeBackingStore: {
-        if (backing_store->open_gl.framebuffer.user_data) {
-          FlutterBackingStoreData* backing_store_data =
-              (__bridge FlutterBackingStoreData*)backing_store->open_gl.framebuffer.user_data;
+  FML_DCHECK(![[NSThread currentThread] isMainThread]);
+  std::unique_lock<std::mutex> lock(mutex_);
+  pending_ = true;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [CATransaction begin];
+    for (size_t i = 0; i < layers_count; ++i) {
+      const auto* layer = layers[i];
+      FlutterBackingStore* backing_store = const_cast<FlutterBackingStore*>(layer->backing_store);
+      switch (layer->type) {
+        case kFlutterLayerContentTypeBackingStore: {
+          NSLog(@"kFlutterLayerContentTypeBackingStore");
+          if (backing_store->open_gl.framebuffer.user_data) {
+            FlutterBackingStoreData* backing_store_data =
+                (__bridge FlutterBackingStoreData*)backing_store->open_gl.framebuffer.user_data;
 
-          FlutterIOSurfaceHolder* io_surface_holder = [backing_store_data ioSurfaceHolder];
-          size_t layer_id = [backing_store_data layerId];
+            FlutterIOSurfaceHolder* io_surface_holder = [backing_store_data ioSurfaceHolder];
+            size_t layer_id = [backing_store_data layerId];
 
-          CALayer* content_layer = ca_layer_map_[layer_id];
+            CALayer* content_layer = ca_layer_map_[layer_id];
 
-          FML_CHECK(content_layer) << "Unable to find a content layer with layer id " << layer_id;
+            FML_CHECK(content_layer) << "Unable to find a content layer with layer id " << layer_id;
 
-          content_layer.frame = content_layer.superlayer.bounds;
+            content_layer.frame = content_layer.superlayer.bounds;
+            content_layer.zPosition = i;
 
-          // The surface is an OpenGL texture, which means it has origin in bottom left corner
-          // and needs to be flipped vertically
-          content_layer.transform = CATransform3DMakeScale(1, -1, 1);
-          IOSurfaceRef io_surface_contents = [io_surface_holder ioSurface];
-          [content_layer setContents:(__bridge id)io_surface_contents];
+            // The surface is an OpenGL texture, which means it has origin in bottom left corner
+            // and needs to be flipped vertically
+            content_layer.transform = CATransform3DMakeScale(1, -1, 1);
+            IOSurfaceRef io_surface_contents = [io_surface_holder ioSurface];
+            [content_layer setContents:(__bridge id)io_surface_contents];
+          }
+          break;
         }
-        break;
-      }
-      case kFlutterLayerContentTypePlatformView:
-        NSView* platform_view = view_controller_.views[layer->platform_view->identifier];
-        platform_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        if (platform_view.superview == nil) {
-          [view_controller_.flutterView addSubview:platform_view];
-        } else {
-          platform_view.layer.zPosition = i;
-        }
-        break;
-    };
-  }
-  // The frame has been presented, prepare FlutterGLCompositor to
-  // render a new frame.
-  frame_started_ = false;
-  return present_callback_();
+        case kFlutterLayerContentTypePlatformView:
+          NSLog(@"kFlutterLayerContentTypePlatformView");
+          NSLog(@"x: %f, y: %f, width: %f, height: %f", layer->offset.x, layer->offset.y, layer->size.width, layer->size.height);
+          NSView* platform_view = view_controller_.views[layer->platform_view->identifier];
+          // [platform_view setPreferredContentSize:CGRectMake(layer->offset.x, layer->offset.y, layer->size.width, layer->size.height)];
+          // platform_view.layer.frame = CGRectMake(layer->offset.x, layer->offset.y, layer->size.width, layer->size.height);
+          platform_view.bounds = CGRectMake(layer->offset.x, layer->offset.y, layer->size.width, layer->size.height);
+          platform_view.frame = CGRectMake(layer->offset.x, layer->offset.y, layer->size.width, layer->size.height);
+          // [platform_view setConstrainedFrameSize: CGRectMake(layer->offset.x, layer->offset.y, layer->size.width, layer->size.height)];
+          // [platform_view setPreferredMaxLayoutWidth:layer->size.width];
+          if (platform_view.superview == nil) {
+            [view_controller_.flutterView addSubview:platform_view];
+          } else {
+            platform_view.layer.zPosition = i;
+          }
+          break;
+      };
+    }
+    // The frame has been presented, prepare FlutterGLCompositor to
+    // render a new frame.
+    frame_started_ = false;
+    [CATransaction commit];
+    pending_ = false;
+    cv_.notify_all();
+    }
+  );
+
+  cv_.wait(lock, [&](){return !pending_;});
+  present_callback_();
+
+  return true;
 }
 
 void FlutterGLCompositor::SetPresentCallback(

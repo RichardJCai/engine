@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <map>
+#include <mutex>
 
 #include "flutter/fml/macros.h"
 #include "flutter/shell/platform/darwin/macos/framework/Source/FlutterSurfaceManager.h"
@@ -51,6 +52,10 @@ class FlutterGLCompositor {
   const FlutterViewController* view_controller_;
   const NSOpenGLContext* open_gl_context_;
   PresentCallback present_callback_;
+
+  std::condition_variable cv_;
+  std::mutex mutex_;
+  bool pending_;
 
   // Count for how many CALayers have been created for a frame.
   // Resets when a frame is finished.

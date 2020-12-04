@@ -408,8 +408,8 @@ static void CommonInit(FlutterViewController* controller) {
 
     MockFlutterPlatformFactory* factory = [MockFlutterPlatformFactory new];
 
-    // CGRect frame = CGRectMake(0, 0, params.sizePoints(), params.sizePoints().height());
-    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:CGRectZero
+    CGRect frame = CGRectMake(500, 0, 300, 300);
+    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:frame
                                                         viewIdentifier:viewId
                                                             arguments:nil];                                     
 
