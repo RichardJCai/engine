@@ -72,7 +72,6 @@ bool FlutterGLCompositor::CollectBackingStore(const FlutterBackingStore* backing
 }
 
 bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_count) {
-  [CATransaction begin];
   for (size_t i = 0; i < layers_count; ++i) {
     const auto* layer = layers[i];
     FlutterBackingStore* backing_store = const_cast<FlutterBackingStore*>(layer->backing_store);
@@ -105,7 +104,8 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
         NSLog(@"kFlutterLayerContentTypePlatformView");
         NSLog(@"x: %f, y: %f, width: %f, height: %f", layer->offset.x, layer->offset.y, layer->size.width, layer->size.height);
         NSView* platform_view = view_controller_.platformViews[layer->platform_view->identifier];
-        platform_view.frame = CGRectMake(layer->offset.x, layer->offset.y, layer->size.width, layer->size.height);
+        CGFloat scale = [[NSScreen mainScreen] backingScaleFactor];
+        platform_view.frame = CGRectMake(layer->offset.x / scale, layer->offset.y / scale, layer->size.width / scale, layer->size.height / scale);
         if (platform_view.superview == nil) {
           [view_controller_.flutterView addSubview:platform_view];
         } else {
@@ -118,7 +118,6 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
   // render a new frame.
   frame_started_ = false;
   DisposeViews();
-  [CATransaction commit];
   return present_callback_();
 }
 

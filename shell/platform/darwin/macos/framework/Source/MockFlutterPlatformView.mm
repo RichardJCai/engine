@@ -38,7 +38,7 @@
 
     WKWebView* webView = [[WKWebView alloc] initWithFrame:frame];
 
-    NSURL *url = [NSURL URLWithString:@"https://www.google.com"];
+    NSURL *url = [NSURL URLWithString:@"https://flutter.dev/"];
     NSURLRequest *request = [NSURLRequest requestWithURL:url];
 
     [webView loadRequest:request];
