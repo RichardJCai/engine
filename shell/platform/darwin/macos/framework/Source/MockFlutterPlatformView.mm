@@ -8,28 +8,44 @@
 @implementation MockPlatformView
 
 - (instancetype)initWithFrame:(CGRect)frame {
-  self = [super initWithFrame:frame];
+  WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+  self = [super initWithFrame:frame configuration:config];
+
+  NSURL *nsurl=[NSURL URLWithString:@"http://www.google.com"];
+  NSURLRequest *nsrequest=[NSURLRequest requestWithURL:nsurl];
+  [self loadRequest:nsrequest];
+  // self = [super initWithFrame:frame];
   // [super setString:@"hello"];
-  [super setTextColor:[NSColor blueColor]];
-  super.drawsBackground = true;
-  super.backgroundColor = [NSColor redColor];
+  // [super setTextColor:[NSColor blueColor]];
+  // super.drawsBackground = true;
+  // super.backgroundColor = [NSColor redColor];
   // [self.layer setBackgroundColor:[[NSColor redColor] CGColor]];
+
   return self;
 }
 @end
 
 @implementation MockFlutterPlatformView
 
-- (instancetype)init {
-  if (self = [super init]) {
-    _view = [[MockPlatformView alloc] init];
-  }
-  return self;
-}
-
 - (instancetype)initWithFrame:(CGRect)frame arguments:(id _Nullable)args {
   if (self = [super init]) {
-    _view = [[MockPlatformView alloc] initWithFrame:frame];
+    // _view = [[MockPlatformView alloc] initWithFrame:frame];
+    
+    // Try getting WKWebView working.
+    WKUserContentController* userContentController = [[WKUserContentController alloc] init];
+    WKWebViewConfiguration* configuration = [[WKWebViewConfiguration alloc] init];
+    configuration.userContentController = userContentController;
+
+    WKWebView* webView = [[WKWebView alloc] initWithFrame:frame];
+
+    NSURL *url = [NSURL URLWithString:@"https://www.google.com"];
+    NSURLRequest *request = [NSURLRequest requestWithURL:url];
+
+    [webView loadRequest:request];
+    // webView.frame = NSMakeRect(500, 0, 300, 300);
+    _view = webView;
+
+    NSLog(@"webView initWithFrame");
   }
   return self;
 }

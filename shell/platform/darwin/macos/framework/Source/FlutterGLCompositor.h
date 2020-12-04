@@ -53,10 +53,6 @@ class FlutterGLCompositor {
   const NSOpenGLContext* open_gl_context_;
   PresentCallback present_callback_;
 
-  std::condition_variable cv_;
-  std::mutex mutex_;
-  bool pending_;
-
   // Count for how many CALayers have been created for a frame.
   // Resets when a frame is finished.
   // ca_layer_count_ is also used as a layerId.
@@ -73,6 +69,9 @@ class FlutterGLCompositor {
 
   // Set frame_started_ to true and reset all layer state.
   void StartFrame();
+
+  // Remove platform views that are specified for deletion.
+  void DisposeViews();
 
   // Creates a CALayer and adds it to ca_layer_map_ and increments
   // ca_layer_count_; Returns the key value (size_t) for the layer in

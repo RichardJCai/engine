@@ -396,26 +396,48 @@ static void CommonInit(FlutterViewController* controller) {
 
   [_platformViewsChannel
   setMethodCallHandler:^(FlutterMethodCall* call, FlutterResult result) {                
-    // This is hardcoded to create an NSTextView.
-    NSDictionary<NSString*, id>* args = [call arguments];
-    long viewId = [args[@"id"] longValue];
+    if ([[call method] isEqualToString:@"create"]) {
+      [weakSelf onCreate:call result:result];
+    } else if ([[call method] isEqualToString:@"dispose"]) {
+      [weakSelf onDispose:call result:result];
+    } 
+  }];
+}
 
-    if (self->_views.count(viewId) != 0) {
+- (void)onCreate:(nonnull FlutterMethodCall*)call result:(nonnull FlutterResult) result {
+    NSDictionary<NSString*, id>* args = [call arguments];
+    int64_t viewId = [args[@"id"] longValue];
+
+    if (self->_platformViews.count(viewId) != 0) {
       result([FlutterError errorWithCode:@"recreating_view"
                                 message:@"trying to create an already created view"
-                                details:[NSString stringWithFormat:@"view id: '%ld'", viewId]]);
+                                details:[NSString stringWithFormat:@"view id: '%lld'", viewId]]);
     }
 
     MockFlutterPlatformFactory* factory = [MockFlutterPlatformFactory new];
 
-    CGRect frame = CGRectMake(500, 0, 300, 300);
-    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:frame
+    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:CGRectZero
                                                         viewIdentifier:viewId
                                                             arguments:nil];                                     
 
-    self->_views[viewId] = [embedded_view view];
+    self->_platformViews[viewId] = [embedded_view view];
     result(nil);
-  }];
+}
+
+- (void)onDispose:(nonnull FlutterMethodCall*) call result:(nonnull FlutterResult) result {
+  NSNumber* arg = [call arguments];
+  int64_t viewId = [arg longLongValue];
+  NSLog(@"onDispose ViewId: %lld", viewId);
+
+  if (self->_platformViews.count(viewId) == 0) {
+    result([FlutterError errorWithCode:@"unknown_view"
+                               message:@"trying to dispose an unknown"
+                               details:[NSString stringWithFormat:@"view id: '%lld'", viewId]]);
+    return;
+  }
+  // We wait for next present to dispose views.
+  self->_platformViewsToDispose.insert(viewId);
+  result(nil);
 }
 
 - (void)dispatchMouseEvent:(nonnull NSEvent*)event {
