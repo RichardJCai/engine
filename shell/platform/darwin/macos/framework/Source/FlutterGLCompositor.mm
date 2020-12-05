@@ -115,6 +115,7 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
   // The frame has been presented, prepare FlutterGLCompositor to
   // render a new frame.
   frame_started_ = false;
+  DisposePlatformViews();
   return present_callback_();
 }
 
