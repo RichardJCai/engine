@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterViewController.h"
+#include <map>
+#include <unordered_set>
 
+#import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterViewController.h"
+#import "flutter/shell/platform/darwin/macos/framework/Source/FlutterPlatformViews.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterView.h"
 
 @interface FlutterViewController ()
@@ -11,10 +14,29 @@
 // The FlutterView for this view controller.
 @property(nonatomic, readonly, nullable) FlutterView* flutterView;
 
+// NSDictionary maps strings to FlutterPlatformViewFactorys.
+@property(nonnull) NSMutableDictionary<NSString*, NSObject<FlutterPlatformViewFactory>*>* factories;
+
+// A map of view ids to views.
+@property() std::map<int, NSView*> platformViews;
+// View ids that are going to be disposed on the next present call.
+@property() std::unordered_set<int64_t> platformViewsToDispose;
+
 /**
  * This just returns the NSPasteboard so that it can be mocked in the tests.
  */
 @property(nonatomic, readonly, nonnull) NSPasteboard* pasteboard;
+
+/**
+ * Platform View Methods.
+ */
+
+- (void)onCreate:(nonnull FlutterMethodCall*)call result:(nonnull FlutterResult)result;
+
+- (void)onDispose:(nonnull FlutterMethodCall*)call result:(nonnull FlutterResult)result;
+
+- (void)registerViewFactory:(nonnull NSObject<FlutterPlatformViewFactory>*)factory
+                     withId:(nonnull NSString*)factoryId;
 
 /**
  * Adds a responder for keyboard events. Key up and key down events are forwarded to all added
