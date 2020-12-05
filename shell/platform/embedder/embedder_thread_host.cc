@@ -127,8 +127,11 @@ EmbedderThreadHost::CreateEmbedderManagedThreadHost(
 
   auto platform_task_runner_pair = CreateEmbedderTaskRunner(
       SAFE_ACCESS(custom_task_runners, platform_task_runner, nullptr));
+
   auto render_task_runner_pair = CreateEmbedderTaskRunner(
-      SAFE_ACCESS(custom_task_runners, render_task_runner, nullptr));
+      SAFE_ACCESS(custom_task_runners, platform_task_runner, nullptr));
+  // auto render_task_runner_pair = CreateEmbedderTaskRunner(
+  //     SAFE_ACCESS(custom_task_runners, render_task_runner, nullptr));
 
   if (!platform_task_runner_pair.first || !render_task_runner_pair.first) {
     // User error while supplying a custom task runner. Return an invalid thread
@@ -173,7 +176,8 @@ EmbedderThreadHost::CreateEmbedderManagedThreadHost(
   flutter::TaskRunners task_runners(
       kFlutterThreadName,
       platform_task_runner,                    // platform
-      render_task_runner,                      // raster
+      platform_task_runner,                    // raster
+      // render_task_runner,                      // raster
       thread_host.ui_thread->GetTaskRunner(),  // ui (always engine managed)
       thread_host.io_thread->GetTaskRunner()   // io (always engine managed)
   );
@@ -220,7 +224,8 @@ EmbedderThreadHost::CreateEngineManagedThreadHost() {
   flutter::TaskRunners task_runners(
       kFlutterThreadName,
       platform_task_runner,                        // platform
-      thread_host.raster_thread->GetTaskRunner(),  // raster
+      platform_task_runner,                        // raster
+      // thread_host.raster_thread->GetTaskRunner(),  // raster
       thread_host.ui_thread->GetTaskRunner(),      // ui
       thread_host.io_thread->GetTaskRunner()       // io
   );
