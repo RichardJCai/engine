@@ -14,9 +14,6 @@
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterView.h"
 #import "flutter/shell/platform/embedder/embedder.h"
 
-// This is for creating Mock Platform Views currently.
-#import "flutter/shell/platform/darwin/macos/framework/Source/MockFlutterPlatformView.h"
-
 namespace {
 
 /// Clipboard plain text format.
@@ -217,6 +214,7 @@ static void CommonInit(FlutterViewController* controller) {
                                      allowHeadlessExecution:NO];
   controller->_additionalKeyResponders = [[NSMutableOrderedSet alloc] init];
   controller->_mouseTrackingMode = FlutterMouseTrackingModeInKeyWindow;
+  controller->_factories = [[NSMutableDictionary alloc] init];
 }
 
 - (instancetype)initWithCoder:(NSCoder*)coder {
@@ -396,20 +394,63 @@ static void CommonInit(FlutterViewController* controller) {
 
   [_platformViewsChannel
   setMethodCallHandler:^(FlutterMethodCall* call, FlutterResult result) {                
-    // This is hardcoded to create an NSTextView.
-    NSDictionary<NSString*, id>* args = [call arguments];
-    long viewId = [args[@"id"] longValue];
+    if ([[call method] isEqualToString:@"create"]) {
+      [weakSelf onCreate:call result:result];
+    } else if ([[call method] isEqualToString:@"dispose"]) {
+      [weakSelf onDispose:call result:result];
+    } 
+  }];
+}
 
-    MockFlutterPlatformFactory* factory = [MockFlutterPlatformFactory new];
+- (void)onCreate:(nonnull FlutterMethodCall*)call result:(nonnull FlutterResult) result {
+    NSMutableDictionary<NSString*, id>* args = [call arguments];
+    int64_t viewId = [args[@"id"] longValue];
+    NSString* viewType = [NSString stringWithUTF8String:([args[@"viewType"] UTF8String])];
 
-    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:CGRectMake(500, 0, 300, 300)
+    if (self->_platformViews.count(viewId) != 0) {
+      result([FlutterError errorWithCode:@"recreating_view"
+                                message:@"trying to create an already created view"
+                                details:[NSString stringWithFormat:@"view id: '%lld'", viewId]]);
+    }
+
+
+    NSObject<FlutterPlatformViewFactory>* factory = _factories[viewType];
+    if (factory == nil) {
+      result([FlutterError errorWithCode:@"unregistered_view_type"
+                                message:@"trying to create a view with an unregistered type"
+                                details:[NSString stringWithFormat:@"unregistered view type: '%@'",
+                                                                    args[@"viewType"]]]);
+      return;
+    }
+    
+    NSObject<FlutterPlatformView>* embedded_view = [factory createWithFrame:CGRectZero
                                                         viewIdentifier:viewId
                                                             arguments:nil];                                     
 
-    // Hard coded right now to store one platform view in the map.
-    self->_view_map[1] = [embedded_view view];
+    self->_platformViews[viewId] = [embedded_view view];
     result(nil);
-  }];
+}
+
+- (void)onDispose:(nonnull FlutterMethodCall*) call result:(nonnull FlutterResult) result {
+  NSNumber* arg = [call arguments];
+  int64_t viewId = [arg longLongValue];
+  NSLog(@"onDispose ViewId: %lld", viewId);
+
+  if (self->_platformViews.count(viewId) == 0) {
+    result([FlutterError errorWithCode:@"unknown_view"
+                               message:@"trying to dispose an unknown"
+                               details:[NSString stringWithFormat:@"view id: '%lld'", viewId]]);
+    return;
+  }
+
+  // The following FlutterGLCompositor::Present call will dispose the views.
+  self->_platformViewsToDispose.insert(viewId);
+  result(nil);
+}
+
+- (void)registerViewFactory:(nonnull NSObject<FlutterPlatformViewFactory>*)factory
+                              withId:(nonnull NSString*)factoryId {
+                    _factories[factoryId] = factory;
 }
 
 - (void)dispatchMouseEvent:(nonnull NSEvent*)event {

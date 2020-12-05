@@ -88,6 +88,7 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
           FML_CHECK(content_layer) << "Unable to find a content layer with layer id " << layer_id;
 
           content_layer.frame = content_layer.superlayer.bounds;
+          content_layer.zPosition = i;
 
           // The surface is an OpenGL texture, which means it has origin in bottom left corner
           // and needs to be flipped vertically
@@ -98,14 +99,21 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
         break;
       }
       case kFlutterLayerContentTypePlatformView:
-        // Add functionality in follow up PR.
-        FML_LOG(WARNING) << "Presenting PlatformViews not yet supported";
+        NSView* platform_view = view_controller_.platformViews[layer->platform_view->identifier];
+        CGFloat scale = [[NSScreen mainScreen] backingScaleFactor];
+        platform_view.frame = CGRectMake(layer->offset.x / scale, layer->offset.y / scale, layer->size.width / scale, layer->size.height / scale);
+        if (platform_view.superview == nil) {
+          [view_controller_.flutterView addSubview:platform_view];
+        } else {
+          platform_view.layer.zPosition = i;
+        }
         break;
     };
   }
   // The frame has been presented, prepare FlutterGLCompositor to
   // render a new frame.
   frame_started_ = false;
+  DisposePlatformViews();
   return present_callback_();
 }
 
@@ -137,6 +145,20 @@ size_t FlutterGLCompositor::CreateCALayer() {
   [view_controller_.flutterView.layer addSublayer:content_layer];
   ca_layer_map_[ca_layer_count_] = content_layer;
   return ca_layer_count_++;
+}
+
+void FlutterGLCompositor::DisposePlatformViews() {
+  auto views_to_dispose = view_controller_.platformViewsToDispose;
+  if (views_to_dispose.empty()) {
+    return;
+  }
+
+  for (int64_t viewId : views_to_dispose) {
+    NSView* view = view_controller_.platformViews[viewId];
+    [view removeFromSuperview];
+    view_controller_.platformViews.erase(viewId);
+  }
+  views_to_dispose.clear();
 }
 
 }  // namespace flutter

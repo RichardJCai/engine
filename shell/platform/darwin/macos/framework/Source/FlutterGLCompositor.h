@@ -69,6 +69,9 @@ class FlutterGLCompositor {
   // Set frame_started_ to true and reset all layer state.
   void StartFrame();
 
+  // Remove platform views that are specified for deletion.
+  void DisposePlatformViews();
+
   // Creates a CALayer and adds it to ca_layer_map_ and increments
   // ca_layer_count_; Returns the key value (size_t) for the layer in
   // ca_layer_map_.

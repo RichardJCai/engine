@@ -27,7 +27,7 @@ FLUTTER_EXPORT
 /**
  * Create a `FlutterPlatformView`.
  *
- * Implemented by iOS code that expose a `NSView` for embedding in a Flutter app.
+ * Implemented by MacOS code that expose a `NSView` for embedding in a Flutter app.
  *
  * The implementation of this method should create a new `NSView` and return it.
  *
