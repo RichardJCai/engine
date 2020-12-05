@@ -77,12 +77,18 @@
 
   _waiting = YES;
 
-  _condBlockRequestCommit.wait(lock, [&] { return _pendingCommit; });
+  if ([[NSThread currentThread] isMainThread]) {
+    // Do nothing?
+  } else {
+    _condBlockRequestCommit.wait(lock, [&] { return _pendingCommit; });
+  }
 
-  [_delegate resizeSynchronizerFlush:self];
-  [_delegate resizeSynchronizerCommit:self];
-  _pendingCommit = NO;
-  _condBlockBeginResize.notify_all();
+  if (_pendingCommit) {
+    [_delegate resizeSynchronizerFlush:self];
+    [_delegate resizeSynchronizerCommit:self];
+    _pendingCommit = NO;
+    _condBlockBeginResize.notify_all();
+  }
 
   _waiting = NO;
 }
@@ -118,17 +124,24 @@
     // No resize, schedule commit on platform thread and wait until either done
     // or interrupted by incoming BeginResize
     [_delegate resizeSynchronizerFlush:self];
-    dispatch_async(dispatch_get_main_queue(), [self, cookie = _cookie] {
-      std::unique_lock<std::mutex> lock(_mutex);
-      if (cookie == _cookie) {
-        if (_delegate) {
-          [_delegate resizeSynchronizerCommit:self];
-        }
-        _pendingCommit = NO;
-        _condBlockBeginResize.notify_all();
+    if ([[NSThread currentThread] isMainThread]) {
+      if (_delegate) {
+        [_delegate resizeSynchronizerCommit:self];
       }
-    });
-    _condBlockBeginResize.wait(lock, [&]() { return !_pendingCommit; });
+      _pendingCommit = NO;
+    } else {
+      dispatch_async(dispatch_get_main_queue(), [self, cookie = _cookie] {
+        std::unique_lock<std::mutex> lock(_mutex);
+        if (cookie == _cookie) {
+          if (_delegate) {
+            [_delegate resizeSynchronizerCommit:self];
+          }
+          _pendingCommit = NO;
+          _condBlockBeginResize.notify_all();
+        }
+      });
+      _condBlockBeginResize.wait(lock, [&]() { return !_pendingCommit; });
+    }
   }
 }
 

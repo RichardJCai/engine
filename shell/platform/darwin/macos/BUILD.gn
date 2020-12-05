@@ -79,6 +79,9 @@ source_set("flutter_framework_source") {
     "framework/Source/FlutterViewController_Internal.h",
     "framework/Source/MacOSGLContextSwitch.h",
     "framework/Source/MacOSGLContextSwitch.mm",
+
+    "framework/Source/FlutterWebViewTestPlatformView.h",
+    "framework/Source/FlutterWebViewTestPlatformView.mm"
   ]
 
   sources += _flutter_framework_headers
@@ -106,6 +109,7 @@ source_set("flutter_framework_source") {
     "CoreVideo.framework",
     "IOSurface.framework",
     "QuartzCore.framework",
+    "WebKit.framework",
   ]
 }
 

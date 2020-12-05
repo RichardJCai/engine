@@ -14,6 +14,9 @@
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterPlatformViewController_Internal.h"
 #import "flutter/shell/platform/embedder/embedder.h"
 
+// This is for creating Mock Platform Views currently.
+#import "flutter/shell/platform/darwin/macos/framework/Source/FlutterWebViewTestPlatformView.h"
+
 /**
  * Constructs and returns a FlutterLocale struct corresponding to |locale|, which must outlive
  * the returned struct.
@@ -330,6 +333,10 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
 
   [self setupPlatformViewChannel];
   [self createPlatformViewController];
+
+    // Test factory register.
+  MockFlutterPlatformFactory* factory = [MockFlutterPlatformFactory new];
+  [_platformViewController registerViewFactory: factory withId: @"webview"];
 
   flutterArguments.compositor = [self createFlutterCompositor];
 
