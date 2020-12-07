@@ -55,4 +55,10 @@
  */
 - (void)disposePlatformViews;
 
+/**
+ * Return whether or not platform views are enabled by looking for the
+ * io.flutter_embedded_views_preview flag in Info.plist.
+ */
++ (bool)embeddedViewsEnabled;
+
 @end
