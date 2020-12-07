@@ -428,7 +428,6 @@ static void CommonInit(FlutterViewController* controller) {
 - (void)onDispose:(nonnull FlutterMethodCall*)call result:(nonnull FlutterResult)result {
   NSNumber* arg = [call arguments];
   int64_t viewId = [arg longLongValue];
-  NSLog(@"onDispose ViewId: %lld", viewId);
 
   if (_platformViews.count(viewId) == 0) {
     result([FlutterError errorWithCode:@"unknown_view"
