@@ -15,13 +15,14 @@
 @property(nonatomic, readonly, nullable) FlutterView* flutterView;
 
 // NSDictionary maps strings to FlutterPlatformViewFactorys.
-@property(nonnull) NSMutableDictionary<NSString*, NSObject<FlutterPlatformViewFactory>*>* factories;
+@property(nonnull, nonatomic)
+    NSMutableDictionary<NSString*, NSObject<FlutterPlatformViewFactory>*>* factories;
 
 // A map of platform view ids to views.
-@property() std::map<int, NSView*> platformViews;
+@property(nonatomic) std::map<int, NSView*> platformViews;
 
 // View ids that are going to be disposed on the next present call.
-@property() std::unordered_set<int64_t> platformViewsToDispose;
+@property(nonatomic) std::unordered_set<int64_t> platformViewsToDispose;
 
 /**
  * This just returns the NSPasteboard so that it can be mocked in the tests.

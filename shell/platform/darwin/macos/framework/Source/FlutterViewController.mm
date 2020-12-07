@@ -393,11 +393,7 @@ static void CommonInit(FlutterViewController* controller) {
   }];
 
   [_platformViewsChannel setMethodCallHandler:^(FlutterMethodCall* call, FlutterResult result) {
-    if ([[call method] isEqualToString:@"create"]) {
-      [weakSelf onCreate:call result:result];
-    } else if ([[call method] isEqualToString:@"dispose"]) {
-      [weakSelf onDispose:call result:result];
-    }
+    [weakSelf handleMethodCall:call result:result];
   }];
 }
 
@@ -406,7 +402,7 @@ static void CommonInit(FlutterViewController* controller) {
   int64_t viewId = [args[@"id"] longValue];
   NSString* viewType = [NSString stringWithUTF8String:([args[@"viewType"] UTF8String])];
 
-  if (self->_platformViews.count(viewId) != 0) {
+  if (_platformViews.count(viewId) != 0) {
     result([FlutterError errorWithCode:@"recreating_view"
                                message:@"trying to create an already created view"
                                details:[NSString stringWithFormat:@"view id: '%lld'", viewId]]);
@@ -425,7 +421,7 @@ static void CommonInit(FlutterViewController* controller) {
                                                            viewIdentifier:viewId
                                                                 arguments:nil];
 
-  self->_platformViews[viewId] = [platform_view view];
+  _platformViews[viewId] = [platform_view view];
   result(nil);
 }
 
@@ -434,7 +430,7 @@ static void CommonInit(FlutterViewController* controller) {
   int64_t viewId = [arg longLongValue];
   NSLog(@"onDispose ViewId: %lld", viewId);
 
-  if (self->_platformViews.count(viewId) == 0) {
+  if (_platformViews.count(viewId) == 0) {
     result([FlutterError errorWithCode:@"unknown_view"
                                message:@"trying to dispose an unknown"
                                details:[NSString stringWithFormat:@"view id: '%lld'", viewId]]);
@@ -442,7 +438,7 @@ static void CommonInit(FlutterViewController* controller) {
   }
 
   // The following FlutterGLCompositor::Present call will dispose the views.
-  self->_platformViewsToDispose.insert(viewId);
+  _platformViewsToDispose.insert(viewId);
   result(nil);
 }
 
@@ -579,6 +575,10 @@ static void CommonInit(FlutterViewController* controller) {
     result(nil);
   } else if ([call.method isEqualToString:@"Clipboard.hasStrings"]) {
     result(@{@"value" : @([self clipboardHasStrings])});
+  } else if ([[call method] isEqualToString:@"create"]) {
+    [self onCreate:call result:result];
+  } else if ([[call method] isEqualToString:@"dispose"]) {
+    [self onDispose:call result:result];
   } else {
     result(FlutterMethodNotImplemented);
   }

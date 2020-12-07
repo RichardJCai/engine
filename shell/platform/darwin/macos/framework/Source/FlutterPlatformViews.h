@@ -18,6 +18,12 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol FlutterPlatformView <NSObject>
 /**
  * Returns a reference to the `NSView` that is wrapped by this `FlutterPlatformView`.
+ *
+ * It is recommended to return a cached view instance in this method.
+ * Constructing a new view instance and return in this method might cause undefined behavior.
+ *
+ * TODO(richardjcai): Prevent [FlutterPlatformView view] to be called multiple times
+ * in a single frame.
  */
 - (NSView*)view;
 @end
@@ -27,16 +33,16 @@ FLUTTER_EXPORT
 /**
  * Create a `FlutterPlatformView`.
  *
- * Implemented by MacOS code that expose a `NSView` for embedding in a Flutter app.
+ * Implemented by MacOS code that expose a `FlutterPlatformView` for embedding in a Flutter app.
  *
- * The implementation of this method should create a new `NSView` and return it.
+ * The implementation of this method should create a new `FlutterPlatformView` and return it.
  *
- * @param frame The rectangle for the newly created `NSView` measured in points.
- * @param viewId A unique identifier for this `NSView`.
- * @param args Parameters for creating the `NSView` sent from the Dart side of the Flutter app.
- *   If `createArgsCodec` is not implemented, or if no creation arguments were sent from the Dart
- *   code, this will be null. Otherwise this will be the value sent from the Dart code as decoded by
- *   `createArgsCodec`.
+ * @param frame The rectangle for the newly created `FlutterPlatformView` measured in points.
+ * @param viewId A unique identifier for this `FlutterPlatformView`.
+ * @param args Parameters for creating the `FlutterPlatformView` sent from the Dart side of the
+ * Flutter app. If `createArgsCodec` is not implemented, or if no creation arguments were sent from
+ * the Dart code, this will be null. Otherwise this will be the value sent from the Dart code as
+ * decoded by `createArgsCodec`.
  */
 - (NSObject<FlutterPlatformView>*)createWithFrame:(CGRect)frame
                                    viewIdentifier:(int64_t)viewId

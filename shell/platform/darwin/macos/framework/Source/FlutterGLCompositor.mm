@@ -71,6 +71,7 @@ bool FlutterGLCompositor::CollectBackingStore(const FlutterBackingStore* backing
 }
 
 bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_count) {
+  DisposePlatformViews();
   for (size_t i = 0; i < layers_count; ++i) {
     const auto* layer = layers[i];
     FlutterBackingStore* backing_store = const_cast<FlutterBackingStore*>(layer->backing_store);
@@ -114,7 +115,6 @@ bool FlutterGLCompositor::Present(const FlutterLayer** layers, size_t layers_cou
   // The frame has been presented, prepare FlutterGLCompositor to
   // render a new frame.
   frame_started_ = false;
-  DisposePlatformViews();
   return present_callback_();
 }
 
